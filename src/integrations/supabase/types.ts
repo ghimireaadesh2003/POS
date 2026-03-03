@@ -211,6 +211,44 @@ export type Database = {
         }
         Relationships: []
       }
+      waiter_requests: {
+        Row: {
+          id: string
+          table_id: number
+          request_type: string
+          note: string | null
+          status: string
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          table_id: number
+          request_type?: string
+          note?: string | null
+          status?: string
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          table_id?: number
+          request_type?: string
+          note?: string | null
+          status?: string
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waiter_requests_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -33,7 +33,16 @@ import { AdminThemeProvider } from "@/contexts/AdminThemeContext";
 
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,           // data is fresh for 30s
+      refetchOnWindowFocus: true,  // refetch when tab gets focus back
+      refetchOnReconnect: true,    // refetch when network reconnects
+      retry: 2,                    // retry failed queries twice
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

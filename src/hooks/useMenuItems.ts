@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 import type { MenuItem, ModifierGroup, MealPeriod } from '@/data/mockData';
 
 interface DbMenuItem {
@@ -31,6 +32,18 @@ function mapDbToMenuItem(db: DbMenuItem): MenuItem {
 }
 
 export function useMenuItems() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('menu-items-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['menu-items'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['menu-items'],
     queryFn: async () => {

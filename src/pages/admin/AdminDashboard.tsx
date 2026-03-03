@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, Users, ShoppingCart, Clock, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { DollarSign, Users, ShoppingCart, Clock, TrendingUp, ArrowUpRight, ArrowDownRight, HandHelping, Check } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useOrders, ORDER_STATUS_STYLES } from '@/hooks/useOrders';
 import { useTables } from '@/hooks/useTables';
+import { useWaiterRequests, useUpdateWaiterRequest, REQUEST_TYPE_LABELS } from '@/hooks/useWaiterRequests';
+import { toast } from 'sonner';
 
 const AdminDashboard: React.FC = () => {
   const { data: orders = [] } = useOrders();
   const { data: tables = [] } = useTables();
+  const { data: waiterRequests = [] } = useWaiterRequests();
+  const updateWaiterRequest = useUpdateWaiterRequest();
 
   const activeTables = tables.filter(t => t.status === 'occupied' || t.status === 'billing').length;
   const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -24,6 +28,27 @@ const AdminDashboard: React.FC = () => {
     });
     return Object.entries(hourMap).map(([hour, count]) => ({ hour, orders: count }));
   }, [orders]);
+
+  const pendingRequests = waiterRequests.filter(r => r.status === 'pending');
+
+  const handleAcknowledge = (id: string) => {
+    updateWaiterRequest.mutate({ id, status: 'acknowledged' }, {
+      onSuccess: () => toast.success('Request acknowledged'),
+    });
+  };
+
+  const handleResolve = (id: string) => {
+    updateWaiterRequest.mutate({ id, status: 'resolved' }, {
+      onSuccess: () => toast.success('Request resolved'),
+    });
+  };
+
+  const getTimeSince = (time: string) => {
+    const mins = Math.floor((Date.now() - new Date(time).getTime()) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ago`;
+  };
 
   const stats = [
     { label: "Today's Revenue", value: `$${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: DollarSign, change: `${orders.length} orders`, up: true },
@@ -62,6 +87,64 @@ const AdminDashboard: React.FC = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Waiter Requests Section */}
+      {pendingRequests.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card rounded-xl border border-border p-5 shadow-card"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                <HandHelping className="w-4 h-4 text-warning" />
+              </div>
+              <h2 className="font-display text-lg font-semibold text-foreground">Active Waiter Requests</h2>
+            </div>
+            <span className="text-xs font-bold text-warning bg-warning/10 px-2.5 py-1 rounded-full">
+              {pendingRequests.length} pending
+            </span>
+          </div>
+          <div className="space-y-3">
+            {pendingRequests.map(req => (
+              <motion.div
+                key={req.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between py-3 px-4 rounded-xl bg-warning/5 border border-warning/10"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-foreground">Table {req.table_id}</span>
+                    <span className="text-xs font-medium text-warning bg-warning/10 px-2 py-0.5 rounded-full">
+                      {REQUEST_TYPE_LABELS[req.request_type] || req.request_type}
+                    </span>
+                  </div>
+                  {req.note && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">"{req.note}"</p>
+                  )}
+                  <p className="text-xs text-muted-foreground/60 mt-0.5">{getTimeSince(req.created_at)}</p>
+                </div>
+                <div className="flex gap-2 ml-3">
+                  <button
+                    onClick={() => handleAcknowledge(req.id)}
+                    className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg font-medium hover:bg-primary/20 transition-colors"
+                  >
+                    Acknowledge
+                  </button>
+                  <button
+                    onClick={() => handleResolve(req.id)}
+                    className="text-xs bg-success/10 text-success px-3 py-1.5 rounded-lg font-medium hover:bg-success/20 transition-colors flex items-center gap-1"
+                  >
+                    <Check className="w-3 h-3" /> Resolve
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5 shadow-card">
@@ -109,3 +192,4 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
+

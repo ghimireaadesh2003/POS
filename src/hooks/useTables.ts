@@ -22,7 +22,10 @@ export function useUpdateTableStatus() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      queryClient.invalidateQueries({
+        queryKey: ['tables'],
+        exact: false,
+      });
     },
   });
 }
@@ -52,8 +55,14 @@ export function useUpdateTableRevenue() {
       if (ordersError) throw ordersError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tables'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({
+        queryKey: ['tables'],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['orders'],
+        exact: false,
+      });
     },
   });
 }
@@ -65,7 +74,10 @@ export function useTables() {
     const channel = supabase
       .channel('tables-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_tables' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['tables'] });
+        queryClient.invalidateQueries({
+          queryKey: ['tables'],
+          exact: false,
+        });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -73,6 +85,7 @@ export function useTables() {
 
   return useQuery({
     queryKey: ['tables'],
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('restaurant_tables')

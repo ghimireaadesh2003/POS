@@ -5,6 +5,7 @@ import { useNotifications } from '@/contexts/NotificationContext';
 import NotificationPanel from '@/components/admin/NotificationPanel';
 import { useAdminTheme } from '@/contexts/AdminThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrdersRealtime } from '@/hooks/useOrders';
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
   { label: 'Live Orders', icon: ShoppingCart, path: '/admin/orders' },
@@ -28,6 +29,9 @@ const AdminLayout: React.FC = () => {
   const { unreadCount } = useNotifications();
   const { theme, toggleTheme } = useAdminTheme();
   const { signOut, user } = useAuth();
+
+  // Centralized realtime listener for orders
+  useOrdersRealtime();
 
   // Close mobile sidebar on route change
   useEffect(() => {

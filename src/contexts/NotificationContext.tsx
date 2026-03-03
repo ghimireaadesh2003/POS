@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export type NotificationType = 'order' | 'kitchen' | 'waiter' | 'info' | 'success' | 'warning';
 
@@ -11,6 +13,8 @@ export interface AppNotification {
   read: boolean;
   tableNumber?: number;
   orderId?: string;
+  /** For waiter-type, the DB row id so we can acknowledge it */
+  waiterRequestId?: string;
 }
 
 interface NotificationContextType {
@@ -21,6 +25,13 @@ interface NotificationContextType {
   markAllRead: () => void;
   clearAll: () => void;
 }
+
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+  water: 'Refill Water',
+  bill: 'Bring Bill',
+  silverware: 'Silverware',
+  help: 'Need Help',
+};
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
@@ -84,9 +95,58 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const clearAll = useCallback(() => setNotifications([]), []);
 
+  // ── Supabase Realtime: listen for new waiter requests ────────
+  const addNotificationRef = useRef(addNotification);
+  addNotificationRef.current = addNotification;
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('waiter-requests-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'waiter_requests',
+        },
+        (payload) => {
+          const req = payload.new as {
+            id: string;
+            table_id: number;
+            request_type: string;
+            note: string | null;
+          };
+
+          const label = REQUEST_TYPE_LABELS[req.request_type] || req.request_type;
+          const noteText = req.note ? ` — "${req.note}"` : '';
+
+          // Push into notification panel
+          addNotificationRef.current({
+            type: 'waiter',
+            title: '🔔 Waiter Call',
+            message: `Table ${req.table_id}: ${label}${noteText}`,
+            tableNumber: req.table_id,
+            waiterRequestId: req.id,
+          });
+
+          // Show sonner toast for immediate visibility
+          toast.info(`Table ${req.table_id} needs attention`, {
+            description: `${label}${noteText}`,
+            duration: 8000,
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <NotificationContext.Provider value={{ notifications, unreadCount, addNotification, markRead, markAllRead, clearAll }}>
       {children}
     </NotificationContext.Provider>
   );
 };
+

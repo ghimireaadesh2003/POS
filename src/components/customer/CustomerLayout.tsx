@@ -5,6 +5,7 @@ import { Phone } from "lucide-react";
 import { AnimatePresence } from "framer-motion"; // Add this
 import BottomNav from "@/components/customer/BottomNav";
 import CallWaiterModal from "@/components/customer/CallWaiterModal"; // Adjust path as needed
+import { useOrdersRealtime } from "@/hooks/useOrders";
 
 const CustomerLayout: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -12,6 +13,9 @@ const CustomerLayout: React.FC = () => {
 
   // 1. Local state to control modal visibility
   const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false);
+
+  // Centralized realtime listener for orders
+  useOrdersRealtime();
 
   useEffect(() => {
     const table = searchParams.get("table");

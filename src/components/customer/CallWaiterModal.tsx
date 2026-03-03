@@ -10,6 +10,8 @@ import {
   Send,
   CheckCircle2,
 } from "lucide-react";
+import { useCreateWaiterRequest } from "@/hooks/useWaiterRequests";
+import { toast } from "sonner";
 
 interface Props {
   onClose: () => void;
@@ -49,21 +51,37 @@ const CallWaiterModal: React.FC<Props> = ({ onClose, tableNumber = "12" }) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
 
+  const createRequest = useCreateWaiterRequest();
+
   const handleCall = async () => {
     if (!selectedRequest && !note.trim()) return;
 
+    const parsedTable = typeof tableNumber === 'string' ? parseInt(tableNumber, 10) : tableNumber;
+    if (!parsedTable || isNaN(parsedTable) || parsedTable <= 0) {
+      toast.error("No table assigned. Please scan the QR code at your table.");
+      return;
+    }
+
     setIsSending(true);
 
-    // Simulate API Call to staff dashboard
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      await createRequest.mutateAsync({
+        tableId: parsedTable,
+        requestType: selectedRequest,
+        note: note,
+      });
 
-    setIsSending(false);
-    setIsSent(true);
+      setIsSending(false);
+      setIsSent(true);
 
-    // Auto-close after showing success
-    setTimeout(() => {
-      onClose();
-    }, 2000);
+      // Auto-close after showing success
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err: any) {
+      setIsSending(false);
+      toast.error(err.message || "Failed to send request. Please try again.");
+    }
   };
 
   return (
